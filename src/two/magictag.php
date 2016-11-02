@@ -9,7 +9,7 @@
  * @copyright 2014 David Cramer
  */
 
-namespace calderawp\filter;
+namespace calderawp\filter\two;
 
 /**
  * Class magictag
@@ -87,6 +87,10 @@ class magictag {
 			return esc_url( get_permalink( $post->ID ) );
 
 		}
+
+		if( 0 === strpos(  $field, 'author.' ) ){
+			return $this->author_traversal( $field, $post );
+		}
 		
 		//handle auto-generated and <!--more--> tag excerpts @since 1.1.0
 		if ( 'post_excerpt' == $field && '' == $post->post_excerpt ) {
@@ -106,11 +110,19 @@ class magictag {
 
 		}
 
+		$maybe_feature = $this->maybe_do_featured( $field, $post );
+		if(  is_string( $maybe_feature ) ){
+			return $maybe_feature;
+		}
+
 		//possibly do a post_thumbnail magic tag @since 1.1.0
 		$maybe_thumbnail = $this->maybe_do_post_thumbnail( $field, $post );
 		if ( filter_var( $maybe_thumbnail, FILTER_VALIDATE_URL ) ) {
 			return $maybe_thumbnail;
+		}
 
+		if( 0 === $maybe_thumbnail ) {
+			return '';
 		}
 
 		if( isset( $post->{$field} ) ){
@@ -121,7 +133,35 @@ class magictag {
 		return $in_params;
 
 	}
-	
+
+	/**
+	 * Handle author.field traversals
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param string $field Field
+	 * @param \WP_Post $post Current post
+	 *
+	 * @return mixed
+	 */
+	protected function author_traversal( $field, $post ) {
+		$parts = explode( '.', $field );
+		$author = get_user_by( 'id', $post->post_author );
+		
+		$parts = explode( '.', $field );
+		$author = get_user_by( 'id', $post->post_author );
+
+		if( is_object( $author ) && isset( $parts[1] ) && 'posts_url' == $parts[1] ) {
+			$link = get_author_posts_url( $author->ID );
+			return $link;
+		}
+
+		if( is_object( $author ) && isset( $parts[1] ) && isset( $author->$parts[1] ) ) {
+			return $author->$parts[1];
+		}
+
+	}
+
 	/**
 	 * Filters a post magic tag
 	 *
@@ -138,7 +178,7 @@ class magictag {
 			// a third e.g {post:24:post_title} indicates post ID 24 value post_title
 			$post = get_post( $params[0] );
 			$field = $params[1];
-			
+
 		}else{
 			// stic to current post
 			global $post;
@@ -146,7 +186,7 @@ class magictag {
 
 		}
 
-		// try object	
+		// try object
 		return $this->get_post_value( $field, $in_params, $post );
 
 	}
@@ -185,7 +225,7 @@ class magictag {
 			}
 		}
 		return $params;
-	}	
+	}
 
 	/**
 	 * Filters a POST magic tag
@@ -200,7 +240,7 @@ class magictag {
 			return wp_slash( $_POST[$params] );
 		}
 
-		return $params;		
+		return $params;
 	}
 
 	/**
@@ -265,7 +305,7 @@ class magictag {
 	 * @return    string 	converted tag value
 	 */
 	public function filter_ip( ){
-		
+
 		// get IP
 		$ip = $_SERVER['REMOTE_ADDR'];
 		if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
@@ -307,9 +347,40 @@ class magictag {
 
 			}
 
+			return 0;
+
 		}
 
 		return false;
+
+
+
+	}
+
+	/**
+	 * Handle 'post_featured' tags
+	 *
+	 * @since 2.1.0
+	 *
+	 * @param string $field
+	 * @param \WP_Post|object $post Post object
+	 *
+	 * @return string|void
+	 */
+	private function maybe_do_featured( $field, $post ){
+		if ( 'post_featured' == $field ) {
+
+			$id = get_post_thumbnail_id( $post->ID );
+			if ( 0 < absint( $id ) ) {
+
+				return wp_get_attachment_image( $id, 'large' );
+			}
+
+			return '';
+
+		}
+
+
 
 	}
 
