@@ -159,11 +159,30 @@ class magictag {
 	 */
 	public function filter_get_var( $params ){
 
-		if( isset($_GET[$params])){
-			return wp_slash( $_GET[$params] );
-		}elseif( !empty( $_SERVER['HTTP_REFERER'] ) ){
-			return $this->filter_get_referr_var( $params );
+		$params = explode(':', $params);
+
+		if( is_array( $params ) ) {
+		    $post = $_POST;
+		    $cn = count($params);
+		    for ( $i = 0; $i < $cn; $i++ ) {
+			$param = $params[$i];
+
+			if( $i < $cn - 1 && isset($post[ $param ]) ) {
+			    $post = $post[ $param ];
+			}
+
+			if( $i == $cn - 1  && isset($post[ $param ]) ) {
+			     return wp_slash( $post[ $param ] );
+			}
+		    }
+		} else {
+		    if ( isset( $_POST[ $params ] ) ) {
+			return wp_slash( $_POST[ $params ] );
+		    }
+		} elseif ( !empty( $_SERVER['HTTP_REFERER'] ) ){
+		    return $this->filter_get_referr_var( $params );
 		}
+
 
 		return $params;
 	}
